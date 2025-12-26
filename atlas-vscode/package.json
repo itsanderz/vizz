@@ -50,6 +50,31 @@
         "command": "atlas.promptToPlot",
         "title": "Prompt to Plot",
         "category": "Atlas"
+      },
+      {
+        "command": "atlas.openAdvancedVisualization",
+        "title": "Open Advanced Visualization",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.visualizeAttentionPatterns",
+        "title": "Visualize Attention Patterns",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.visualizeSimilarityMatrix",
+        "title": "Visualize Similarity Matrix",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.openTrainingDashboard",
+        "title": "Open Training Dashboard",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.refresh",
+        "title": "Refresh",
+        "category": "Atlas"
       }
     ],
     "viewsContainers": {

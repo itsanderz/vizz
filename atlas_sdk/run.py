@@ -295,6 +295,270 @@ class Run:
             metadata={"type": "image", "caption": caption},
         )
 
+    def log_attention(
+        self,
+        name: str,
+        attention: np.ndarray,
+        step: Optional[int] = None,
+        layer: int = 0,
+        head_names: Optional[List[str]] = None,
+        token_labels: Optional[List[str]] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Log attention patterns for visualization.
+
+        Attention tensors are stored efficiently and can be visualized
+        as multi-head attention heatmaps in the Atlas VS Code extension.
+
+        Args:
+            name: Attention tensor name (e.g., "self_attention")
+            attention: Attention weights [num_heads, seq_len, seq_len]
+                      or [batch, num_heads, seq_len, seq_len]
+            step: Step number
+            layer: Layer index for multi-layer attention
+            head_names: Optional names for each attention head
+            token_labels: Optional labels for sequence positions
+            metadata: Additional metadata
+
+        Example:
+            # Log attention from a transformer layer
+            attn_weights = model.get_attention_weights()  # [12, 64, 64]
+            run.log_attention(
+                "layer_0_attention",
+                attn_weights,
+                step=step,
+                layer=0,
+                head_names=[f"Head {i}" for i in range(12)],
+            )
+        """
+        if self._finished:
+            return
+
+        if step is None:
+            step = self._step
+
+        arr = np.array(attention)
+
+        # Validate shape
+        if arr.ndim == 3:
+            num_heads, seq_len_q, seq_len_k = arr.shape
+            batch_size = 1
+        elif arr.ndim == 4:
+            batch_size, num_heads, seq_len_q, seq_len_k = arr.shape
+        else:
+            raise ValueError(
+                f"Attention tensor must be 3D [heads, seq, seq] or "
+                f"4D [batch, heads, seq, seq], got shape {arr.shape}"
+            )
+
+        # Build metadata
+        attn_metadata = {
+            "type": "attention",
+            "layer": layer,
+            "num_heads": num_heads,
+            "seq_len_query": seq_len_q,
+            "seq_len_key": seq_len_k,
+            "batch_size": batch_size,
+        }
+
+        if head_names:
+            attn_metadata["head_names"] = head_names
+        if token_labels:
+            attn_metadata["token_labels"] = token_labels
+        if metadata:
+            attn_metadata.update(metadata)
+
+        # Save tensor
+        self._storage.log_tensor(
+            f"attention/{name}/layer_{layer}",
+            arr,
+            step,
+            metadata=attn_metadata,
+        )
+
+        # Log summary statistics as metrics
+        self.log({
+            f"{name}/layer_{layer}/mean": float(arr.mean()),
+            f"{name}/layer_{layer}/max": float(arr.max()),
+            f"{name}/layer_{layer}/entropy": float(self._compute_attention_entropy(arr)),
+        }, step=step)
+
+    def log_hidden_states(
+        self,
+        name: str,
+        hidden_states: np.ndarray,
+        step: Optional[int] = None,
+        layer: int = 0,
+        compute_similarity: bool = True,
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Log hidden states for visualization.
+
+        Hidden states can be visualized as similarity matrices or
+        activation maps in the Atlas VS Code extension.
+
+        Args:
+            name: Hidden state tensor name
+            hidden_states: Hidden states [batch, seq_len, hidden_dim]
+                          or [seq_len, hidden_dim]
+            step: Step number
+            layer: Layer index
+            compute_similarity: Compute and log similarity matrix
+            metadata: Additional metadata
+
+        Example:
+            # Log hidden states from a transformer layer
+            hidden = model.get_hidden_states()  # [batch, seq, dim]
+            run.log_hidden_states(
+                "encoder_hidden",
+                hidden,
+                step=step,
+                layer=0,
+            )
+        """
+        if self._finished:
+            return
+
+        if step is None:
+            step = self._step
+
+        arr = np.array(hidden_states)
+
+        # Validate shape
+        if arr.ndim == 2:
+            seq_len, hidden_dim = arr.shape
+            batch_size = 1
+            arr = arr[np.newaxis, :, :]
+        elif arr.ndim == 3:
+            batch_size, seq_len, hidden_dim = arr.shape
+        else:
+            raise ValueError(
+                f"Hidden states must be 2D [seq, dim] or "
+                f"3D [batch, seq, dim], got shape {arr.shape}"
+            )
+
+        # Build metadata
+        state_metadata = {
+            "type": "hidden_state",
+            "layer": layer,
+            "seq_len": seq_len,
+            "hidden_dim": hidden_dim,
+            "batch_size": batch_size,
+        }
+
+        if metadata:
+            state_metadata.update(metadata)
+
+        # Save hidden states tensor
+        self._storage.log_tensor(
+            f"hidden_states/{name}/layer_{layer}",
+            arr,
+            step,
+            metadata=state_metadata,
+        )
+
+        # Compute and save similarity matrix if requested
+        if compute_similarity:
+            # Use first batch for similarity
+            h = arr[0]  # [seq_len, hidden_dim]
+
+            # Normalize for cosine similarity
+            norms = np.linalg.norm(h, axis=1, keepdims=True)
+            h_normalized = h / (norms + 1e-8)
+
+            # Compute similarity matrix
+            similarity = np.dot(h_normalized, h_normalized.T)
+
+            self._storage.log_tensor(
+                f"similarity/{name}/layer_{layer}",
+                similarity,
+                step,
+                metadata={
+                    "type": "similarity_matrix",
+                    "layer": layer,
+                    "metric": "cosine",
+                    "seq_len": seq_len,
+                },
+            )
+
+            # Log summary statistics
+            # Get off-diagonal elements
+            mask = ~np.eye(seq_len, dtype=bool)
+            off_diag = similarity[mask]
+
+            self.log({
+                f"{name}/layer_{layer}/similarity_mean": float(off_diag.mean()),
+                f"{name}/layer_{layer}/similarity_std": float(off_diag.std()),
+            }, step=step)
+
+    def log_gradients(
+        self,
+        name: str,
+        gradients: Dict[str, np.ndarray],
+        step: Optional[int] = None,
+        log_histograms: bool = True,
+    ) -> None:
+        """
+        Log gradient statistics for visualization.
+
+        Args:
+            name: Name for this gradient snapshot
+            gradients: Dict of parameter_name -> gradient array
+            step: Step number
+            log_histograms: Whether to log gradient histograms
+
+        Example:
+            # Log gradients from PyTorch model
+            grads = {name: p.grad.cpu().numpy()
+                    for name, p in model.named_parameters()
+                    if p.grad is not None}
+            run.log_gradients("training", grads, step=step)
+        """
+        if self._finished:
+            return
+
+        if step is None:
+            step = self._step
+
+        grad_norms = {}
+        total_norm_sq = 0.0
+
+        for param_name, grad in gradients.items():
+            arr = np.array(grad)
+            norm = float(np.linalg.norm(arr))
+            grad_norms[param_name] = norm
+            total_norm_sq += norm ** 2
+
+            if log_histograms:
+                self.log_histogram(
+                    f"gradients/{name}/{param_name}",
+                    arr.flatten(),
+                    step=step,
+                )
+
+        total_norm = np.sqrt(total_norm_sq)
+
+        # Log gradient flow metrics
+        self.log({
+            f"gradients/{name}/total_norm": total_norm,
+            f"gradients/{name}/max_norm": max(grad_norms.values()) if grad_norms else 0.0,
+            f"gradients/{name}/num_params": len(gradients),
+        }, step=step)
+
+    def _compute_attention_entropy(self, attention: np.ndarray) -> float:
+        """Compute average entropy of attention distributions."""
+        # Flatten to [num_distributions, seq_len]
+        flat = attention.reshape(-1, attention.shape[-1])
+
+        # Compute entropy for each distribution
+        # Add small epsilon to avoid log(0)
+        eps = 1e-10
+        entropy = -np.sum(flat * np.log(flat + eps), axis=1)
+
+        return float(np.mean(entropy))
+
     def set_config(self, config: Dict[str, Any]) -> None:
         """Update run configuration."""
         self._config.config.update(config)

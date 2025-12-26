@@ -12,6 +12,7 @@ import { LiveMetricsProvider } from "./views/LiveMetricsProvider";
 import { InsightsProvider } from "./views/InsightsProvider";
 import { DashboardPanel } from "./webview/DashboardPanel";
 import { TensorSurgeonPanel } from "./webview/TensorSurgeonPanel";
+import { AdvancedVisualizationPanel } from "./webview/AdvancedVisualizationPanel";
 import { FileWatcher } from "./watcher/FileWatcher";
 
 let storage: AtlasStorage | undefined;
@@ -141,6 +142,35 @@ export async function activate(context: vscode.ExtensionContext) {
         runsProvider.refresh();
         liveMetricsProvider.refresh();
         insightsProvider.refresh();
+      }),
+
+      // Advanced visualization commands
+      vscode.commands.registerCommand("atlas.openAdvancedVisualization", () => {
+        AdvancedVisualizationPanel.createOrShow(context.extensionUri, storage!);
+      }),
+
+      vscode.commands.registerCommand("atlas.visualizeAttentionPatterns", () => {
+        AdvancedVisualizationPanel.createOrShow(
+          context.extensionUri,
+          storage!,
+          AdvancedVisualizationPanel.PRESETS.attention_12_heads
+        );
+      }),
+
+      vscode.commands.registerCommand("atlas.visualizeSimilarityMatrix", () => {
+        AdvancedVisualizationPanel.createOrShow(
+          context.extensionUri,
+          storage!,
+          AdvancedVisualizationPanel.PRESETS.similarity_4_layers
+        );
+      }),
+
+      vscode.commands.registerCommand("atlas.openTrainingDashboard", () => {
+        AdvancedVisualizationPanel.createOrShow(
+          context.extensionUri,
+          storage!,
+          AdvancedVisualizationPanel.PRESETS.discrete_flow_dashboard
+        );
       })
     );
 
