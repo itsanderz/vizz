@@ -1,0 +1,131 @@
+{
+  "name": "atlas-vscode",
+  "displayName": "Atlas - Sovereign Experiment Engine",
+  "description": "Local-first ML experiment tracking and visualization for VS Code",
+  "version": "0.1.0",
+  "publisher": "atlas",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Data Science",
+    "Machine Learning",
+    "Visualization"
+  ],
+  "keywords": [
+    "machine learning",
+    "experiment tracking",
+    "visualization",
+    "deep learning",
+    "mlops"
+  ],
+  "activationEvents": [
+    "workspaceContains:.atlas",
+    "onCommand:atlas.openDashboard"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "atlas.openDashboard",
+        "title": "Open Dashboard",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.openTensorSurgeon",
+        "title": "Open Tensor Surgeon",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.compareRuns",
+        "title": "Compare Runs",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.generateReport",
+        "title": "Generate Report",
+        "category": "Atlas"
+      },
+      {
+        "command": "atlas.promptToPlot",
+        "title": "Prompt to Plot",
+        "category": "Atlas"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "atlas",
+          "title": "Atlas",
+          "icon": "resources/atlas-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "atlas": [
+        {
+          "id": "atlas.runs",
+          "name": "Runs"
+        },
+        {
+          "id": "atlas.liveMetrics",
+          "name": "Live Metrics"
+        },
+        {
+          "id": "atlas.insights",
+          "name": "AI Insights"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "atlas.openDashboard",
+          "when": "view == atlas.runs",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Atlas",
+      "properties": {
+        "atlas.refreshInterval": {
+          "type": "number",
+          "default": 1000,
+          "description": "Dashboard refresh interval in milliseconds"
+        },
+        "atlas.maxDisplayedRuns": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum number of runs to display"
+        },
+        "atlas.enableAIInsights": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable AI-powered insights"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts",
+    "build:webview": "cd webview && npm run build",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "duckdb": "^0.9.2",
+    "chokidar": "^3.5.3",
+    "better-sqlite3": "^9.2.2"
+  }
+}
