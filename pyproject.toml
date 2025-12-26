@@ -13,15 +13,30 @@ authors = [
     { name = "Atlas Team" }
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
+    "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Scientific/Engineering :: Visualization",
+    "Topic :: System :: Monitoring",
+    "Typing :: Typed",
+]
+keywords = [
+    "machine-learning",
+    "experiment-tracking",
+    "deep-learning",
+    "mlops",
+    "visualization",
+    "pytorch",
+    "jax",
+    "transformers",
 ]
 dependencies = [
     "pyarrow>=14.0.0",
@@ -36,29 +51,102 @@ dependencies = [
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.0.0",
     "mypy>=1.0.0",
     "ruff>=0.1.0",
+    "pre-commit>=3.0.0",
 ]
 gpu = [
     "pynvml>=11.0.0",
 ]
+torch = [
+    "torch>=2.0.0",
+]
+lightning = [
+    "pytorch-lightning>=2.0.0",
+    "torch>=2.0.0",
+]
+jax = [
+    "jax>=0.4.0",
+    "jaxlib>=0.4.0",
+]
+huggingface = [
+    "transformers>=4.30.0",
+]
+security = [
+    "cryptography>=41.0.0",
+]
+jupyter = [
+    "ipywidgets>=8.0.0",
+    "jupyterlab>=4.0.0",
+]
+all = [
+    "atlas-sdk[gpu,torch,lightning,jax,huggingface,security,jupyter]",
+]
+
+[project.scripts]
+atlas = "atlas_sdk.cli:main"
 
 [project.urls]
 Homepage = "https://github.com/itsanderz/vizz"
 Repository = "https://github.com/itsanderz/vizz"
+Documentation = "https://github.com/itsanderz/vizz#readme"
+Issues = "https://github.com/itsanderz/vizz/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["atlas_sdk"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/atlas_sdk",
+    "/README.md",
+    "/LICENSE",
+]
 
 [tool.mypy]
 python_version = "3.9"
 strict = true
 warn_return_any = true
 warn_unused_configs = true
+exclude = ["tests"]
+
+[[tool.mypy.overrides]]
+module = [
+    "torch.*",
+    "pytorch_lightning.*",
+    "jax.*",
+    "transformers.*",
+    "pynvml.*",
+    "duckdb.*",
+    "pyarrow.*",
+    "safetensors.*",
+]
+ignore_missing_imports = true
 
 [tool.ruff]
 line-length = 100
 target-version = "py39"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM", "TCH", "RUF"]
+ignore = ["E501"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["atlas_sdk"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short"
+
+[tool.coverage.run]
+source = ["atlas_sdk"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+    "if TYPE_CHECKING:",
+]
